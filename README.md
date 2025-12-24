@@ -1,7 +1,7 @@
-# East Java Route Finder (Streamlit)
+# Addis Ababa Route Finder (Streamlit)
 
-This repository reorganizes the original project into a professional, modular structure **without changing the original logic**. 
-All algorithms and UI behavior are preserved; we've only split the code into multiple files for clarity.
+This repository customizes the reorganized repo into doing a star and greedy search algorithms for a school project. 
+All UI behavior are preserved. The structure of the data set has changed. Heuristics is computed using havestine whereas distance is manually added to the dataset.
 
 ## Preview UI
 <img src="./assets/image.png">
@@ -13,10 +13,6 @@ pip install -r requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
-## Notes
-- The dataset file **east-java-cities-dataset.xlsx** stays at the repository root and the loader uses the exact same preprocessing as your original code.
-- Algorithms (**Dijkstra** and **UCS**) were moved into `route_finder/algorithms/algorithms.py` with their bodies kept verbatim.
-- The Streamlit UI logic was moved into `route_finder/ui.py` and is called by `app/streamlit_app.py`.
 
 ## Project layout
 ```
@@ -26,14 +22,13 @@ route_finder/
   __init__.py
   data_loader.py
   graph_io.py
+  heuristic.py
   utils.py
   ui.py
   algorithms/
     __init__.py
     algorithms.py
-east-java-cities-dataset.xlsx
+Nodes.xlsx
 requirements.txt
 README.md
 ```
-
-License: MIT

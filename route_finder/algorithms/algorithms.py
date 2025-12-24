@@ -2,84 +2,77 @@ from __future__ import annotations
 import heapq
 from typing import Dict, Hashable, List, Tuple
 
-# Graph type alias aligned with original structure (adjacency list with costs)
+# Graph type alias (adjacency list with costs)
 Graph = Dict[Hashable, List[Tuple[Hashable, float]]]
 
-# === Verbatim from user's original code ===
-
-def dijkstra(graph, start, goal):
-    djk_distances = {node: float('inf') for node in graph}
-    djk_distances[start] = 0
-    djk_frontier = [(0, start)]  # Priority queue
-    djk_explored = set()
-    djk_path = {}
-    djk_visited_edges = []
-
+# === A* Algorithm ===
+def a_star(graph: Graph, start, goal, heuristic: Dict[Hashable, Dict[Hashable, float]]):
+    open = [(heuristic[start][goal], 0, start)]  # (f = g+h, g, node)
+    closed = set()
+    path = {}
+    g_cost = []
     step_counter = 1
 
-    while djk_frontier:
-        dj_current_cost, djk_current_node = heapq.heappop(djk_frontier)
+    while open:
+        f_cost, g, current_node = heapq.heappop(open)
 
-        if djk_current_node == goal:
-            djk_path_result = []
-            while djk_current_node != start:
-                djk_path_result.append(djk_current_node)
-                djk_current_node = djk_path[djk_current_node]
-            djk_path_result.append(start)
-            djk_path_result.reverse()
-            return djk_path_result, dj_current_cost, djk_visited_edges
+        if current_node == goal:
+            path_result = []
+            node = current_node
+            while node != start:
+                path_result.append(node)
+                node = path[node]
+            path_result.append(start)
+            path_result.reverse()
+            return path_result, g, g_cost
 
-        if djk_current_node not in djk_explored:
-            djk_explored.add(djk_current_node)
-            for neighbor, cost in graph.get(djk_current_node, []):
-                djk_new_cost = dj_current_cost + cost
-                if djk_new_cost < djk_distances[neighbor]:
-                    djk_distances[neighbor] = djk_new_cost
-                    heapq.heappush(djk_frontier, (djk_new_cost, neighbor))
-                    djk_path[neighbor] = djk_current_node
-                    djk_visited_edges.append((djk_current_node, neighbor, step_counter))
-                    step_counter += 1
+        if current_node not in closed:
+            closed.add(current_node)
+            for neighbor, cost in graph.get(current_node, []):
+                new_g = g + cost
+                new_f = new_g + heuristic[neighbor][goal]
+                heapq.heappush(open, (new_f, new_g, neighbor))
+                path[neighbor] = current_node
+                g_cost.append((current_node, neighbor, step_counter))
+                step_counter += 1
 
-    return None, float('inf'), djk_visited_edges  # No path found
+    return None, float('inf'), g_cost  # No path found
 
 
-def ucs(graph, start, goal):
-    ucs_frontier = []  # Priority queue
-    heapq.heappush(ucs_frontier, (0, start))  # Format: (cost, node)
-    ucs_explored = set()  # Set of visited nodes
-    ucs_path = {}  # Track the ucs_path
-    ucs_visited_edges = []
-
+# === Greedy Best-First Search ===
+def greedy_best_first(graph: Graph, start, goal, heuristic: Dict[Hashable, Dict[Hashable, float]]):
+    open = [(heuristic[start][goal], start)]  # (h, node)
+    closed = set()
+    path = {}
+    g_cost = []
     step_counter = 1
 
-    while ucs_frontier:
-        ucs_current_cost, ucs_current_node = heapq.heappop(ucs_frontier)
+    while open:
+        h_cost, current_node = heapq.heappop(open)
 
-        if ucs_current_node == goal:  # Goal reached
-            ucs_path_result = []
-            ucs_total_cost = 0
+        if current_node == goal:
+            path_result = []
+            node = current_node
+            while node != start:
+                path_result.append(node)
+                node = path[node]
+            path_result.append(start)
+            path_result.reverse()
+            # Greedy does not accumulate real cost, set total cost as sum of edges traversed
+            total_cost = sum(
+                cost for u, v, cost in [
+                    (u, v, next(c for n, c in graph[u] if n == v))
+                    for u, v, _ in g_cost
+                ]
+            )
+            return path_result, total_cost, g_cost
 
-            while ucs_current_node != start:
-                previous_node = ucs_path[ucs_current_node]
-                for neighbor, cost in graph[previous_node]:
-                    if neighbor == ucs_current_node:
-                        ucs_total_cost += cost  # Add the cost of this edge
-                        break
-                ucs_path_result.append(ucs_current_node)
-                ucs_current_node = previous_node
+        if current_node not in closed:
+            closed.add(current_node)
+            for neighbor, cost in graph.get(current_node, []):
+                heapq.heappush(open, (heuristic[neighbor][goal], neighbor))
+                path[neighbor] = current_node
+                g_cost.append((current_node, neighbor, step_counter))
+                step_counter += 1
 
-            ucs_path_result.append(start)
-            ucs_path_result.reverse()
-            return ucs_path_result, ucs_total_cost, ucs_visited_edges
-
-        if ucs_current_node not in ucs_explored:
-            ucs_explored.add(ucs_current_node)
-            for neighbor, cost in graph.get(ucs_current_node, []):
-                if neighbor not in ucs_explored:
-                    ucs_new_cost = ucs_current_cost + cost  # Add the cost to reach the neighbor
-                    heapq.heappush(ucs_frontier, (ucs_new_cost, neighbor))
-                    ucs_path[neighbor] = ucs_current_node
-                    ucs_visited_edges.append((ucs_current_node, neighbor, step_counter))
-                    step_counter += 1
-
-    return None, float('inf'), ucs_visited_edges  # No ucs_path found
+    return None, float('inf'), g_cost  # No path found
