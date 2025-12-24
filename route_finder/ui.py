@@ -42,64 +42,67 @@ def main(df=None):
     
     if view_button:
         st.subheader(f"Heurisitcs to {end_place}(km)")
-        heuristic = get_heuristic(df)
-        matrix_data = []
-        for place in unique_places:
+        with st.spinner("Calculating Heuristic..."):
+            heuristic = get_heuristic(df)
+            matrix_data = []
+            for place in unique_places:
 
-            if place == end_place:
-                h_value = 0.0
-            else:
-                h_value = round(heuristic[place][end_place], 3)
+                if place == end_place:
+                    h_value = 0.0
+                else:
+                    h_value = round(heuristic[place][end_place], 3)
+                
+                matrix_data.append({"Place":place, f"h(n)-> {end_place}":round(h_value, 3)})
+
+            st.dataframe(
+                pd.DataFrame(matrix_data).set_index("Place")
+            )
             
-            matrix_data.append({"Place":place, f"h(n)-> {end_place}":round(h_value, 3)})
-
-        st.dataframe(
-            pd.DataFrame(matrix_data).set_index("Place")
-        )
-        
         
     if view_matrix_button:
         st.subheader("Adjacency Matrix (Km)")
-        nodes = sorted(graph.keys())
-        n = len(nodes)
+        with st.spinner("Calculating Adjacency Matrix..."):
+            nodes = sorted(graph.keys())
+            n = len(nodes)
 
-        matrix = [["inf"] * n for _ in range(n)]
+            matrix = [["inf"] * n for _ in range(n)]
 
-        for i in range(n):
-            matrix[i][i] = 0.0
+            for i in range(n):
+                matrix[i][i] = 0.0
+            
+            node_index = {node: i for i, node in enumerate(nodes)}
+            for u, neighbours in graph.items():
+                i = node_index[u]
+                for v, weight in neighbours:
+                    j = node_index[v]
+                    matrix[i][j] = round(weight, 3)
+            st.dataframe(pd.DataFrame(matrix, index=nodes, columns=nodes))
         
-        node_index = {node: i for i, node in enumerate(nodes)}
-        for u, neighbours in graph.items():
-            i = node_index[u]
-            for v, weight in neighbours:
-                j = node_index[v]
-                matrix[i][j] = round(weight, 3)
-        st.dataframe(pd.DataFrame(matrix, index=nodes, columns=nodes))
-    
     if calculate_button:
         if start_place == end_place:
             st.error("Start and destination cities cannot be the same.")
         else:
-            heuristic = get_heuristic(df)
+            with st.spinner("Running A*..."):
+                heuristic = get_heuristic(df)
 
-            # A* Algorithm Execution
-            tracemalloc.start()
-            a_star_time = measure_execution_time(a_star, graph, start_place, end_place, heuristic)
-            a_star_path, a_star_cost, a_star_visited_edges = a_star(graph, start_place, end_place, heuristic)
-            current, peak = tracemalloc.get_traced_memory()
-            a_star_memory = peak / 1024
-            tracemalloc.stop()
+                # A* Algorithm Execution
+                tracemalloc.start()
+                a_star_time = measure_execution_time(a_star, graph, start_place, end_place, heuristic)
+                a_star_path, a_star_cost, a_star_visited_edges = a_star(graph, start_place, end_place, heuristic)
+                current, peak = tracemalloc.get_traced_memory()
+                a_star_memory = peak / 1024
+                tracemalloc.stop()
 
-            st.session_state.results = {
-                "a_star": {
-                    "path": a_star_path,
-                    "cost": a_star_cost,
-                    "time": a_star_time,
-                    "memory": a_star_memory,
-                    "visited_edges": a_star_visited_edges,
-                },
-                "place_coords": place_coords,
-            }
+                st.session_state.results = {
+                    "a_star": {
+                        "path": a_star_path,
+                        "cost": a_star_cost,
+                        "time": a_star_time,
+                        "memory": a_star_memory,
+                        "visited_edges": a_star_visited_edges,
+                    },
+                    "place_coords": place_coords,
+                }
 
     if st.session_state.results:
         results = st.session_state.results
