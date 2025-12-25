@@ -3,9 +3,6 @@
 This repository customizes the reorganized repo into doing a star and greedy search algorithms for a school project. 
 All UI behavior are preserved. The structure of the data set has changed. Heuristics is computed using havestine whereas distance is manually added to the dataset.
 
-## Preview UI
-<img src="./assets/image.png">
-
 ## How to run
 
 ```bash
