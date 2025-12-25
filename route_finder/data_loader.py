@@ -2,7 +2,7 @@ from __future__ import annotations
 import pandas as pd
 
 
-def load_dataset(path: str = './Mock_Nodes.xlsx') -> pd.DataFrame:
+def load_dataset(path: str = './Nodes.xlsx') -> pd.DataFrame:
     """Load node dataset and normalize column names.
 
     Expected columns (case-insensitive): `node`, `latitude`, `longitude`.

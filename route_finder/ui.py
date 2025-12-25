@@ -12,6 +12,9 @@ from .heuristic import get_heuristic
 
 # This function mirrors the original Streamlit UI logic as-is, only moved here.
 def main(df=None):
+
+    if "page" not in st.session_state:
+        st.session_state.page = "home"
     if df is None:
         df = load_dataset()  # expects Nodes.xlsx with node, latitude, longitude
 
@@ -33,14 +36,19 @@ def main(df=None):
     if isinstance(end_place, str):
         end_place = end_place.strip()
 
-    if "results" not in st.session_state:
-        st.session_state.results = None
+    # if "results" not in st.session_state:
+    #     st.session_state.results = None
 
-    calculate_button = st.sidebar.button("Calculate")
-    view_button = st.sidebar.button("View Heuristic")
-    view_matrix_button = st.sidebar.button("View Adjancency Matrix")
-    
-    if view_button:
+    if st.sidebar.button("Calculate"):
+        st.session_state.page = "algorithm_run"
+    if st.sidebar.button("View Heuristic"):
+        st.session_state.page = "view_heuristic"
+    if st.sidebar.button("View Adjancency Matrix"):
+        st.session_state.page = "view_matrix"
+
+
+
+    if st.session_state.page == "view_heuristic":
         st.subheader(f"Heurisitcs to {end_place}(km)")
         with st.spinner("Calculating Heuristic..."):
             heuristic = get_heuristic(df)
@@ -59,7 +67,7 @@ def main(df=None):
             )
             
         
-    if view_matrix_button:
+    if st.session_state.page == "view_matrix":
         st.subheader("Adjacency Matrix (Km)")
         with st.spinner("Calculating Adjacency Matrix..."):
             nodes = sorted(graph.keys())
@@ -78,7 +86,7 @@ def main(df=None):
                     matrix[i][j] = round(weight, 3)
             st.dataframe(pd.DataFrame(matrix, index=nodes, columns=nodes))
         
-    if calculate_button:
+    if st.session_state.page == "algorithm_run":
         if start_place == end_place:
             st.error("Start and destination cities cannot be the same.")
         else:
@@ -93,49 +101,22 @@ def main(df=None):
                 a_star_memory = peak / 1024
                 tracemalloc.stop()
 
-                st.session_state.results = {
-                    "a_star": {
-                        "path": a_star_path,
-                        "cost": a_star_cost,
-                        "time": a_star_time,
-                        "memory": a_star_memory,
-                        "visited_edges": a_star_visited_edges,
-                    },
-                    "place_coords": place_coords,
-                }
+                st.subheader(f"Algorithm Result from {start_place} to {end_place}")
 
-    if st.session_state.results:
-        results = st.session_state.results
+                if a_star_path:
+                    st.write(f"Path: {' → '.join(a_star_path)}")
+                    st.write(f"Total Cost: {a_star_cost} km")
+                    st.write(f"Time: {a_star_time:.6f} seconds")
+                    st.write(f"Memory Used: {peak / 1024:.2f} KB")
+                    a_map = visualize_on_map(df, a_star_path, a_star_visited_edges, place_coords, graph, start_place, end_place, heuristic)
+                    
+                    st_folium(
+                        a_map,
+                        use_container_width=True,
+                        height=800,
+                        key=f"a_star_map_{start_place}_{end_place}"
+                    )
+                else:
+                    st.warning("No path found.")
 
-        # Define columns for results
-        col1, = st.columns(1)
-
-        # Left column (Dijkstra)
-        with col1:
-            st.subheader("Algorithm Result")
-            if results["a_star"]["path"]:
-                st.write(f"Path: {' -> '.join(results['a_star']['path'])}")
-                st.write(f"Total Cost: {results['a_star']['cost']} Km")
-                st.write(f"Time: {results['a_star']['time']:.16f} seconds")
-                st.write(f"Memory Used: {results['a_star']['memory']:.8f} KB")
-            else:
-                st.write("No path found.")
-
-            # Display A* map
-            a_map = visualize_on_map(df, results["a_star"]["path"], results["a_star"]["visited_edges"], results["place_coords"])
-            st_folium(a_map, width=800, height=400, key=f"a_star_map_{start_place}_{end_place}")
-
-        # # Right column (Greedy)
-        # with col2:
-        #     st.subheader("Greedy Best-First")
-        #     if results["greedy"]["path"]:
-        #         st.write(f"Path: {' -> '.join(results['greedy']['path'])}")
-        #         st.write(f"Total Cost: {results['greedy']['cost']} Km")
-        #         st.write(f"Time: {results['greedy']['time']:.16f} seconds")
-        #         st.write(f"Memory Used: {results['greedy']['memory']:.8f} KB")
-        #     else:
-        #         st.write("No path found.")
-
-        #     # Display Greedy map
-        #     g_map = visualize_on_map(df, results["greedy"]["path"], results["greedy"]["visited_edges"], results["place_coords"])
-        #     st_folium(g_map, width=800, height=400)
+    

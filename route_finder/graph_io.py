@@ -7,51 +7,84 @@ from typing import Dict, Hashable, List, Tuple
 from .data_loader import load_dataset
 
 
-def visualize_on_map(df: pd.DataFrame, path: List[str], visited_edges: List[Tuple[str, str, int]], city_coords: Dict[str, Tuple[float, float]]):
-    """Visualize nodes and edges on a folium map.
+def visualize_on_map(df: pd.DataFrame, path: List[str], visited_edges: List[Tuple[str, str, int]],
+                     city_coords: Dict[str, Tuple[float, float]], graph: Dict[str, List[Tuple[str, float]]],
+                     start: str = None, goal: str = None, heuristic: Dict[str, Dict[str, float]] = None):
+    """
+    Visualize nodes and edges on a folium map with custom coloring:
+    - Start & goal nodes: red
+    - Visited nodes: green
+    - Edges: black
+    - Final path: red
 
-    df is expected to have lowercase `latitude` and `longitude` columns.
     """
     avg_lat = df['latitude'].mean()
     avg_lon = df['longitude'].mean()
-    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=15)
+    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=12, tiles="CartoDB positron")
 
-    # Draw all edges (if provided via city_coords) as gray
-    # Note: original code assumed an edges list; caller can pass visited_edges and path
-    if city_coords:
-        nodes = list(city_coords.keys())
-        for i in range(len(nodes)):
-            for j in range(i + 1, len(nodes)):
-                origin = nodes[i]
-                destination = nodes[j]
-                origin_coords = city_coords[origin]
-                dest_coords = city_coords[destination]
-                folium.PolyLine([origin_coords, dest_coords], color='gray', weight=1.5, opacity=0.5).add_to(m)
+    # Draw all graph edges as black with weights
+    for origin, neighbors in graph.items():
+        origin_coords = city_coords[origin]
+        for dest, weight in neighbors:
+            dest_coords = city_coords[dest]
+            folium.PolyLine([origin_coords, dest_coords],
+                            color='black', weight=2, opacity=0.7).add_to(m)
+            # Edge weight label
+            mid = [(origin_coords[0]+dest_coords[0])/2, (origin_coords[1]+dest_coords[1])/2]
+            folium.Marker(mid, icon=folium.DivIcon(html=f"<div style='font-size:10pt;color:black;'>{round(weight,1)}km</div>")).add_to(m)
 
-    if visited_edges:
-        for edge in visited_edges:
-            origin, destination, step = edge
-            origin_coords = city_coords[origin]
-            dest_coords = city_coords[destination]
-            folium.PolyLine([origin_coords, dest_coords], color='blue', weight=2, opacity=0.8).add_to(m)
-            mid_point = [(origin_coords[0] + dest_coords[0]) / 2, (origin_coords[1] + dest_coords[1]) / 2]
-            folium.Marker(mid_point, icon=folium.DivIcon(html=f'<div style="font-size: 10pt; color: blue;">{step}</div>')).add_to(m)
-
+    # Highlight final path in red
     if path:
         path_coords = [city_coords[city] for city in path]
         folium.PolyLine(path_coords, color='red', weight=4, opacity=0.8).add_to(m)
 
+    # Mark nodes
     for city, coords in city_coords.items():
-        folium.Marker(location=coords, popup=city).add_to(m)
+        # Decide marker color
+        if city == start or city == goal:
+            color = 'red'
+        elif any(city in (edge[0], edge[1]) for edge in visited_edges):
+            color = 'green'
+        else:
+            color = 'blue'
+
+        label = city
+        if heuristic and city in heuristic:
+            label += f"<br><span style='font-size:10px'> ({round(heuristic[city][goal],2)})"
+
+        folium.Marker(location=coords,icon=folium.Icon(color=color)).add_to(m)
+        folium.Marker( location=coords,  # vertical offset
+        icon=folium.DivIcon(
+    html=f"""
+    <div style="
+        position: absolute;
+        bottom: 37px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 11px;
+        font-weight: bold;
+        color: black;
+        white-space: nowrap;
+        pointer-events: none;
+        display: inline-flex;
+        align-items: center;
+    ">
+                {label}
+            </div>
+            """
+            )
+    ).add_to(m)
 
     return m
+
+
 
 
 # Load nodes and build a NetworkX graph where edge weights are distances (km)
 nodes = load_dataset()
 
 
-def load_edges(path: str = './Mock_Edges.xlsx') -> pd.DataFrame:
+def load_edges(path: str = './Edges.xlsx') -> pd.DataFrame:
     """Load edge weights from an Excel file and normalize column names.
 
     Expected columns (case-insensitive): origin/destination or node1/node2 and weight/cost/distance.
@@ -105,7 +138,7 @@ for _, row in nodes.iterrows():
     Graph.add_node(node_id, lat=lat, lon=lon)
     city_coords[node_id] = (lat, lon)
 
-# Load edges from provided Mock_Edges.xlsx if present
+# Load edges from provided Edges.xlsx if present
 edges_df = load_edges()
 if edges_df is not None:
     # build graph from provided weights

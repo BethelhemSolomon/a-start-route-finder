@@ -10,5 +10,5 @@ from route_finder.data_loader import load_dataset
 from route_finder.ui import main
 
 if __name__ == "__main__":
-    df = load_dataset('./Mock_Nodes.xlsx')
+    df = load_dataset('./Nodes.xlsx')
     main(df)
